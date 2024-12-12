@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import os
 
 # This is inspired by Kolmogorov-Arnold Networks but using Chebyshev polynomials instead of splines coefficients
 class ChebyKANLayer(nn.Module):
@@ -34,7 +34,10 @@ class ChebyKANLayer(nn.Module):
         )  # shape = (batch_size, outdim)
         y = y.view(-1, self.outdim)
         return y
-    
+
+    def setCoeffs(self, coeffs):
+        self.cheby_coeffs = coeffs
+
 class ChebyKAN(nn.Module):
     def __init__(self, layers, degree):
         super(ChebyKAN, self).__init__()
@@ -56,3 +59,24 @@ class ChebyKAN(nn.Module):
             x = normLayer(x)
         x = self.layers[-1](x)
         return x
+    
+
+    def saveModel(self, modelDirectory):
+        if not os.path.isdir(modelDirectory):
+            os.makedirs(modelDirectory)
+        for index, layer in enumerate(self.layers):
+            layerPath = modelDirectory + f"\\layer{index}.pt"
+            torch.save(layer.cheby_coeffs, layerPath)
+
+    
+    def loadModel(self, modelDirectory):
+        if not os.path.exists(modelDirectory):
+            print("This path does not exist")
+            return
+        
+        if len(self.layers) != len(os.listdir(modelDirectory)):
+            print(f"The loaded model is expecting {len(os.listdir(modelDirectory))} layers, you have {len(self.layers)}")
+
+        for index, fileName in enumerate(os.listdir(modelDirectory)):
+            filePath = os.path.join(modelDirectory, fileName)
+            self.layers[index].cheby_coeffs = torch.load(filePath)
