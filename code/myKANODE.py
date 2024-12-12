@@ -33,13 +33,17 @@ class KANODE():
 
         self.trainLossArray = np.array([])
         self.testLossArray = np.array([])
-        self.time = torch.Tensor(np.linspace(0, self.integrationTime, len(baseSolution)))
+        self.time = torch.tensor(self.calculateTimeArray())
 
     def calculateBaseSolution(self):
-        numTimeSamples = int((self.trainingSamples/self.trainingTime) * self.integrationTime)
-        time = np.linspace(0, self.integrationTime, numTimeSamples)
+        time = self.calculateTimeArray()
         baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach()[0], time, args=(*self.odeParameters,))       
         return baseSolution
+
+    def calculateTimeArray(self):
+        numTimeSamples = int((self.trainingSamples/self.trainingTime) * self.integrationTime)
+        time = np.linspace(0, self.integrationTime, numTimeSamples)
+        return time
 
     def train(self,
               epochs,
@@ -77,7 +81,6 @@ class KANODE():
             #if epoch % plotFrequency == 0:
                 #self.plot()
 
-
     def test(self):
 
         modelWrapper = lambda t, x: self.model(x)
@@ -106,7 +109,23 @@ class KANODE():
         baseSolution = self.calculateBaseSolution()
         self.baseSolution = torch.Tensor(baseSolution)
 
-#    def setIntegrationTime(self, ):
+    def setIntegrationTime(self, integrationTime):
+        self.integrationTime = integrationTime
+        self.time = torch.tensor(self.calculateTimeArray())
+        self.baseSolution = torch.Tensor(self.calculateBaseSolution)
+        self.baseSolution.requires_grad=True
+
+    def setTrainingTime(self, trainingTime):
+        self.trainingTime = trainingTime
+        self.time = torch.tensor(self.calculateTimeArray())
+        self.baseSolution = torch.Tensor(self.calculateBaseSolution)
+        self.baseSolution.requires_grad=True
+
+    def setTrainingSamples(self, trainingSamples):
+        self.trainingSamples = trainingSamples
+        self.time = torch.tensor(self.calculateTimeArray())
+        self.baseSolution = torch.Tensor(self.calculateBaseSolution)
+        self.baseSolution.requires_grad=True
 
     def plotODE(self, title, solution):
         plt.figure()
@@ -133,7 +152,6 @@ class KANODE():
         plt.ylabel('loss')
  
         plt.show()
-
 
     def plotPhaseSpace(self, title, solution):
         plt.figure()
