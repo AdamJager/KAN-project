@@ -59,9 +59,9 @@ class KANODE():
 
         modelWrapper = lambda t, x: self.model(x)
 
-        self.trainLossArray = np.zeros(epochs)
+        trainLossArray = np.zeros(epochs)
         if recordEval == True:
-            self.testLossArray = np.zeros(epochs)
+            testLossArray = np.zeros(epochs)
 
         for epoch in tqdm(range(epochs)):
             self.model.train()
@@ -72,14 +72,17 @@ class KANODE():
             trainLoss.retain_grad()
             trainLoss.backward()
             optimizer.step()
-            self.trainLossArray[epoch] = trainLoss.detach().cpu()
+            trainLossArray[epoch] = trainLoss.detach().cpu()
 
             if recordEval:
                 testLoss, _ = self.test()
-                self.testLossArray[epoch] = testLoss
+                testLossArray[epoch] = testLoss
 
             #if epoch % plotFrequency == 0:
                 #self.plot()
+
+        self.trainLossArray = np.append(self.trainLossArray, trainLossArray)
+        self.testLossArray = np.append(self.testLossArray, testLossArray)
 
     def test(self):
 
