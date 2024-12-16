@@ -35,6 +35,8 @@ class KANODE():
         self.testLossArray = np.array([])
         self.time = torch.tensor(self.calculateTimeArray())
 
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
+
     def calculateBaseSolution(self):
         time = self.calculateTimeArray()
         baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach()[0], time, args=(*self.odeParameters,))       
@@ -55,7 +57,7 @@ class KANODE():
         trainData = self.baseSolution[:self.trainingSamples, :]
         trainTime = self.time[:self.trainingSamples]
 
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
+        #optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
 
         modelWrapper = lambda t, x: self.model(x)
 
@@ -65,13 +67,13 @@ class KANODE():
 
         for epoch in tqdm(range(epochs)):
             self.model.train()
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             prediction = torchodeint(modelWrapper, self.odeInitialState, trainTime)
             trainLoss = torch.mean(torch.square(prediction[:, 0, :]-trainData))
             trainLoss.retain_grad()
             trainLoss.backward()
-            optimizer.step()
+            self.optimizer.step()
             trainLossArray[epoch] = trainLoss.detach().cpu()
 
             if recordEval:
