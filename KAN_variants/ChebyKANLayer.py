@@ -61,22 +61,22 @@ class ChebyKAN(nn.Module):
         return x
     
 
-    def saveModel(self, modelDirectory):
-        if not os.path.isdir(modelDirectory):
-            os.makedirs(modelDirectory)
-        for index, layer in enumerate(self.layers):
-            layerPath = modelDirectory + f"\\layer{index}.pt"
-            torch.save(layer.cheby_coeffs, layerPath)
-
-    
-    def loadModel(self, modelDirectory):
-        if not os.path.exists(modelDirectory):
-            print("This path does not exist")
-            return
-        
-        if len(self.layers) != len(os.listdir(modelDirectory)):
-            print(f"The loaded model is expecting {len(os.listdir(modelDirectory))} layers, you have {len(self.layers)}")
-
-        for index, fileName in enumerate(os.listdir(modelDirectory)):
-            filePath = os.path.join(modelDirectory, fileName)
-            self.layers[index].cheby_coeffs = torch.load(filePath)
+#    def saveModel(self, modelDirectory):
+#        if not os.path.isdir(modelDirectory):
+#            os.makedirs(modelDirectory)
+#        for index, layer in enumerate(self.layers):
+#            layerPath = modelDirectory + f"\\layer{index}.pt"
+#            torch.save(layer.cheby_coeffs, layerPath)
+#
+#    
+#    def loadModel(self, modelDirectory):
+#        if not os.path.exists(modelDirectory):
+#            print("This path does not exist")
+#            return
+#        
+#        if len(self.layers) != len(os.listdir(modelDirectory)):
+#            print(f"The loaded model is expecting {len(os.listdir(modelDirectory))} layers, you have {len(self.layers)}")
+#
+#        for index, fileName in enumerate(os.listdir(modelDirectory)):
+#            filePath = os.path.join(modelDirectory, fileName)
+#            self.layers[index].cheby_coeffs = torch.load(filePath)

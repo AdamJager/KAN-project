@@ -5,6 +5,7 @@ import torch.nn as nn
 from torchdiffeq import odeint as torchodeint
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import os
 
 
 class KANODE():
@@ -97,6 +98,23 @@ class KANODE():
     
     def setModel(self, model):
         self.model = model
+
+    def saveModel(self, modelDirectory, modelName):
+            if not os.path.isdir(modelDirectory):
+                os.makedirs(modelDirectory)
+            modelPath = os.path.join(modelDirectory, f"{modelName}.pt")
+            torch.save(self.model, modelPath)
+
+    def loadModel(self, modelDirectory, modelName):
+        if not os.path.exists(modelDirectory):
+            print("This path does not exist")
+            return
+
+        modelPath = os.path.join(modelDirectory, f"{modelName}.pt")
+        if not os.path.exists(modelPath):
+            print("This model does not exist")
+
+        self.model = torch.load(modelPath)
 
     def setODE(self, ode):
         self.ode = ode
