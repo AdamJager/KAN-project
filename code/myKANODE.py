@@ -16,7 +16,7 @@ class KANODE():
                  odeParameters,
                  integrationTime,
                  trainingTime,
-                 trainingSamples
+                 samplesPerSecond
                  ):
 
         self.model = model
@@ -24,7 +24,7 @@ class KANODE():
         self.odeParameters = odeParameters
         self.integrationTime = integrationTime
         self.trainingTime = trainingTime
-        self.trainingSamples = trainingSamples
+        self.trainingSamples = samplesPerSecond * trainingTime
 
         self.odeInitialState = torch.unsqueeze((torch.Tensor(np.transpose(odeInitialState))), 0)
         self.odeInitialState.requires_grad=True
