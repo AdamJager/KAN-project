@@ -24,7 +24,7 @@ class KANODE():
         self.odeParameters = odeParameters
         self.integrationTime = integrationTime
         self.trainingTime = trainingTime
-        self.trainingSamples = samplesPerSecond * trainingTime
+        self.trainingSamples = int(samplesPerSecond * trainingTime)
 
         self.odeInitialState = torch.unsqueeze((torch.Tensor(np.transpose(odeInitialState))), 0)
         self.odeInitialState.requires_grad=True
@@ -50,10 +50,18 @@ class KANODE():
 
     def train(self,
               epochs,
-              #plotFrequency,
-              recordEval = True):
+              recordEval = True,
+              maxEpochs = 10000,
+              saveCooldown = 200,
+              evalThreshold = 10**-5,
+              saveDirectory = os.getcwd(),
+              saveName = "defaultName "):
         
         #numTimeSamples = int(trainingSamples * (integrationTime/trainingTime))
+        save = False
+        if epochs == -1:
+            epochs = maxEpochs
+            save = True     
     
         trainData = self.baseSolution[:self.trainingSamples, :]
         trainTime = self.time[:self.trainingSamples]
@@ -65,6 +73,10 @@ class KANODE():
         trainLossArray = np.zeros(epochs)
         if recordEval == True:
             testLossArray = np.zeros(epochs)
+
+        bestLoss = 10000 #temp value to be updated in loop
+        lastRecord = 0 # temp value showing when the last save was
+       
 
         for epoch in tqdm(range(epochs)):
             self.model.train()
@@ -81,8 +93,17 @@ class KANODE():
                 testLoss, _ = self.test()
                 testLossArray[epoch] = testLoss
 
-            #if epoch % plotFrequency == 0:
-                #self.plot()
+            if save == False:
+                continue
+
+            if (testLoss < bestLoss) and (epoch > (lastRecord + saveCooldown)):
+                self.saveModel(saveDirectory, saveName + f"{epoch}")
+                bestLoss = testLoss
+                lastRecord = epoch
+
+            if testLoss < evalThreshold:
+                self.saveModel(saveDirectory, saveName + f"{epoch}")
+                break
 
         self.trainLossArray = np.append(self.trainLossArray, trainLossArray)
         self.testLossArray = np.append(self.testLossArray, testLossArray)
