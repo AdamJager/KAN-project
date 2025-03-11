@@ -19,7 +19,10 @@ class KANODE():
                  samplesPerSecond
                  ):
 
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = model
+        self.model.to(device)
+
         self.ode = ode
         self.odeParameters = odeParameters
         self.integrationTime = integrationTime
@@ -55,7 +58,10 @@ class KANODE():
               saveCooldown = 200,
               evalThreshold = 10**-5,
               saveDirectory = os.getcwd(),
-              saveName = "defaultName "):
+              saveName = "defaultName ",
+              rtol = 1e-7,
+              atol = 1e-9,
+              solverMethod = "dopri5"):
         
         #numTimeSamples = int(trainingSamples * (integrationTime/trainingTime))
         save = False
@@ -82,7 +88,15 @@ class KANODE():
             self.model.train()
             self.optimizer.zero_grad()
 
-            prediction = torchodeint(modelWrapper, self.odeInitialState, trainTime)
+            try:
+                prediction = torchodeint(modelWrapper, self.odeInitialState, trainTime, rtol=rtol, atol=atol, method=solverMethod)
+            except AssertionError:
+                print("torchdiffeq.odeint ran into an underflow error within the solver: try decreasing rtol and atol")
+                break
+            except:
+                print("A different error has occured in torchdiffeq.odeint")
+                break
+
             trainLoss = torch.mean(torch.square(prediction[:, 0, :]-trainData))
             trainLoss.retain_grad()
             trainLoss.backward()
@@ -90,7 +104,7 @@ class KANODE():
             trainLossArray[epoch] = trainLoss.detach().cpu()
 
             if recordEval:
-                testLoss, _ = self.test()
+                testLoss, _ = self.test(solverMethod, rtol=rtol, atol=atol)
                 testLossArray[epoch] = testLoss
 
             if save == False:
@@ -108,25 +122,28 @@ class KANODE():
         self.trainLossArray = np.append(self.trainLossArray, trainLossArray)
         self.testLossArray = np.append(self.testLossArray, testLossArray)
 
-    def test(self):
+    def test(self, solverMethod="dopri5", rtol=1e-7, atol=1e-9):
 
         modelWrapper = lambda t, x: self.model(x)
         self.model.eval()
-        prediction = torchodeint(modelWrapper, self.odeInitialState, self.time)
+        prediction = torchodeint(modelWrapper, self.odeInitialState, self.time, rtol=rtol, atol=atol, method=solverMethod)
         loss = torch.mean(torch.square(prediction[self.trainingSamples:,0, :]-self.baseSolution[self.trainingSamples:, :])).detach().cpu()
 
         return loss, prediction
     
     def setModel(self, model):
         self.model = model
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
 
     def saveModel(self, modelDirectory, modelName):
             if not os.path.isdir(modelDirectory):
                 os.makedirs(modelDirectory)
             modelPath = os.path.join(modelDirectory, f"{modelName}.pt")
+            optimizerPath = os.path.join(modelDirectory, f"{modelName}_optimizer.pt")
             torch.save(self.model, modelPath)
+            torch.save(self.optimizer.state_dict(), optimizerPath)
 
-    def loadModel(self, modelDirectory, modelName):
+    def loadModel(self, modelDirectory, modelName, loadOptimizer = True):
         if not os.path.exists(modelDirectory):
             print("This path does not exist")
             return
@@ -136,6 +153,12 @@ class KANODE():
             print("This model does not exist")
 
         self.model = torch.load(modelPath)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
+        
+        if loadOptimizer == True:
+            optimizerPath = os.path.join(modelDirectory, f"{modelName}_optimizer.pt")
+            self.optimizer.load_state_dict(torch.load(optimizerPath))
+
 
     def setODE(self, ode):
         self.ode = ode
