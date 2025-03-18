@@ -16,34 +16,35 @@ class KANODE():
                  odeParameters,
                  integrationTime,
                  trainingTime,
-                 stepSize
+                 samplesPerSecond
                  ):
 
-        #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(f"currently device: {self.device}")
         self.model = model
-        #self.model.to(device)
+        self.model.to(self.device)
 
         self.ode = ode
         self.odeParameters = odeParameters
         self.integrationTime = integrationTime
         self.trainingTime = trainingTime
-        self.trainingSamples = int(trainingTime/stepSize)
+        self.trainingSamples = int(samplesPerSecond * trainingTime)
 
-        self.odeInitialState = torch.unsqueeze((torch.Tensor(np.transpose(odeInitialState))), 0)
+        self.odeInitialState = torch.unsqueeze((torch.Tensor(np.transpose(odeInitialState))), 0).to(self.device)
         self.odeInitialState.requires_grad=True
         baseSolution = self.calculateBaseSolution()
-        self.baseSolution = torch.Tensor(baseSolution)
+        self.baseSolution = torch.Tensor(baseSolution).to(self.device)
         self.baseSolution.requires_grad=True
 
         self.trainLossArray = np.array([])
         self.testLossArray = np.array([])
-        self.time = torch.tensor(self.calculateTimeArray())
+        self.time = torch.tensor(self.calculateTimeArray()).to(self.device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
 
     def calculateBaseSolution(self):
         time = self.calculateTimeArray()
-        baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach()[0], time, args=(*self.odeParameters,))       
+        baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach().cpu()[0], time, args=(*self.odeParameters,))       
         return baseSolution
 
     def calculateTimeArray(self):
@@ -88,9 +89,7 @@ class KANODE():
             self.model.train()
             self.optimizer.zero_grad()
 
-
-            prediction = torchodeint(modelWrapper, self.odeInitialState, trainTime, rtol=rtol, atol=atol, method=solverMethod)
-
+            prediction = torchodeint(modelWrapper, self.odeInitialState, trainTime, rtol=rtol, atol=atol, method=solverMethod, )
 
             trainLoss = torch.mean(torch.square(prediction[:, 0, :]-trainData))
             trainLoss.retain_grad()
@@ -121,8 +120,8 @@ class KANODE():
 
         modelWrapper = lambda t, x: self.model(x)
         self.model.eval()
-        prediction = torchodeint(modelWrapper, self.odeInitialState, self.time, rtol=rtol, atol=atol, method=solverMethod)
-        loss = torch.mean(torch.square(prediction[self.trainingSamples:,0, :]-self.baseSolution[self.trainingSamples:, :])).detach().cpu()
+        prediction = torchodeint(modelWrapper, self.odeInitialState.to(self.device), self.time.to(self.device), rtol=rtol, atol=atol, method=solverMethod)
+        loss = torch.mean(torch.square(prediction[self.trainingSamples:,0, :]-self.baseSolution[self.trainingSamples:, :]).to(self.device)).detach().cpu()
 
         return loss, prediction
     
