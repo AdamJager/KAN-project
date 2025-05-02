@@ -32,6 +32,8 @@ class KANODE():
         self.odeInitialState = torch.unsqueeze((torch.Tensor(np.transpose(odeInitialState))), 0)
         self.odeInitialState.requires_grad=True
         baseSolution = self.calculateBaseSolution()
+        #normBaseSolution = self.standardiseData(np.transpose(baseSolution))
+        #self.baseSolution = torch.Tensor(np.transpose(normBaseSolution))
         self.baseSolution = torch.Tensor(baseSolution)
         self.baseSolution.requires_grad=True
 
@@ -43,13 +45,20 @@ class KANODE():
 
     def calculateBaseSolution(self):
         time = self.calculateTimeArray()
-        baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach()[0], time, args=(*self.odeParameters,))       
-        return baseSolution
+        baseSolution = scipy.integrate.odeint(self.ode, self.odeInitialState.detach()[0], time, args=(*self.odeParameters,))
+        return np.array(baseSolution)
 
     def calculateTimeArray(self):
         numTimeSamples = int((self.trainingSamples/self.trainingTime) * self.integrationTime)
         time = np.linspace(0, self.integrationTime, numTimeSamples)
         return time
+
+    def standardiseData(self, data, lowerBound = -0.9, upperBound = 0.9):
+        normData = np.zeros(data.shape)
+        for rowIndex, row in enumerate(data):
+            normData[rowIndex, :] = (upperBound - lowerBound) * ((row - np.min(row)) / (np.max(row) - np.min(row))) + lowerBound
+        return normData
+
 
     def train(self,
               epochs,
