@@ -41,7 +41,7 @@ class ChebyKANLayer(nn.Module):
         x = torch.linspace(-1, 1, numPoints)
         # Since Chebyshev polynomial is defined in [-1, 1]
         # We need to normalize x to [-1, 1] using tanh
-        x = torch.tanh(x)
+        x = torch.tanh(self.alpha*x)
         # View and repeat input degree + 1 times
         x = x.view((-1, self.inputdim, 1)).expand(
             -1, -1, self.degree + 1
@@ -59,10 +59,9 @@ class ChebyKANLayer(nn.Module):
 
         return x, y
 
-
-
     def setCoeffs(self, coeffs):
         self.cheby_coeffs = coeffs
+
 
 class ChebyKAN(nn.Module):
     def __init__(self, layers, degree):
@@ -74,16 +73,10 @@ class ChebyKAN(nn.Module):
         for i in range(len(layers) - 1):
             self.layers.append(ChebyKANLayer(layers[i], layers[i+1], degree))
 
-        self.normLayers = nn.ModuleList()
-        for i in range(len(layers) - 2):
-            self.normLayers.append(nn.LayerNorm(layers[i+1]))
-
 
     def forward(self, x):
-        for layer, normLayer in zip(self.layers, self.normLayers):
+        for layer in self.layers:
             x = layer(x)
-            x = normLayer(x)
-        x = self.layers[-1](x)
         return x
     
 
