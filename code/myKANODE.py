@@ -115,12 +115,12 @@ class KANODE():
                 continue
 
             if (testLoss < bestLoss) and (epoch > (lastRecord + saveCooldown)):
-                self.saveModel(saveDirectory, saveName + f"{epoch}")
+                self.saveModel(saveDirectory, saveName + f"{epoch}", epoch, testLoss)
                 bestLoss = testLoss
                 lastRecord = epoch
 
             if testLoss < evalThreshold:
-                self.saveModel(saveDirectory, saveName + f"{epoch}")
+                self.saveModel(saveDirectory, saveName + f"{epoch}", epoch, testLoss)
                 break
 
         self.trainLossArray = np.append(self.trainLossArray, trainLossArray)
@@ -139,15 +139,38 @@ class KANODE():
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=2e-3)
 
-    def saveModel(self, modelDirectory, modelName):
+    def saveModel(self, modelDirectory, modelName, epoch, loss=None):
             if not os.path.isdir(modelDirectory):
                 os.makedirs(modelDirectory)
             modelPath = os.path.join(modelDirectory, f"{modelName}.pt")
-            optimizerPath = os.path.join(modelDirectory, f"{modelName}_optimizer.pt")
-            torch.save(self.model, modelPath)
-            torch.save(self.optimizer.state_dict(), optimizerPath)
+            torch.save({
+                        'model_state_dict': self.model.state_dict(),
+                        'optimizer_state_dict': self.optimizer.state_dict(),
+                        'loss': loss,
+                        'epoch': epoch
+            }, modelPath)
 
-    def loadModel(self, modelDirectory, modelName, loadOptimizer = True):
+    def loadModel(self, modelDirectory, modelName, loadOptimizer = True, returnCheckPoint = False):
+        if not os.path.exists(modelDirectory):
+            print("This path does not exist")
+            return
+
+        modelPath = os.path.join(modelDirectory, f"{modelName}.pt")
+        if not os.path.exists(modelPath):
+            print("This model does not exist")
+
+        checkpoint = torch.load(modelPath, weights_only=False)
+
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        
+        if loadOptimizer == True:
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+        if returnCheckPoint == True:
+            return checkpoint
+
+
+    def legacyloadModel(self, modelDirectory, modelName, loadOptimizer = True):
         if not os.path.exists(modelDirectory):
             print("This path does not exist")
             return
